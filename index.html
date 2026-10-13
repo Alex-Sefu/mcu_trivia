@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MCU Duel - Top 70</title>
+  <style>
+    * { box-sizing: border-box; touch-action: manipulation; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: space-between; 
+      background: #090b10; 
+      color: white; 
+      margin: 0; 
+      padding: 12px; 
+      min-height: 100dvh; 
+      user-select: none; 
+      -webkit-user-select: none; 
+    }
+    .badge {
+      background: #e23636;
+      color: white;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .timers { 
+      display: flex; 
+      gap: 14px; 
+      width: 100%; 
+      max-width: 420px; 
+    }
+    .player { 
+      flex: 1;
+      padding: 10px 6px; 
+      border-radius: 14px; 
+      background: #141824; 
+      font-size: 16px; 
+      font-weight: 700; 
+      border: 3px solid #23293d; 
+      text-align: center; 
+      transition: 0.2s; 
+    }
+    .player span.time { font-size: 32px; font-weight: 900; display: block; margin-top: 2px; }
+    .player span.score { font-size: 14px; color: #ffd166; display: block; margin-top: 4px; font-weight: 800; }
+    .player.active { 
+      background: #c62828; 
+      border-color: #ff5252; 
+      transform: scale(1.04); 
+      box-shadow: 0 0 20px rgba(255, 82, 82, 0.45); 
+    }
+    .card { 
+      position: relative;
+      width: 100%; 
+      max-width: 360px;
+      aspect-ratio: 1 / 1;
+      background: #121520; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      border-radius: 20px; 
+      overflow: hidden; 
+      border: 2px solid #23293d; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7); 
+    }
+    .card img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+    }
+    .reveal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(9, 11, 16, 0.92);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .reveal-overlay.visible { opacity: 1; }
+    .reveal-tag { font-size: 13px; font-weight: 800; color: #ff5252; margin-bottom: 6px; }
+    .reveal-name { font-size: 24px; font-weight: 900; color: #ffd166; }
+    .touch-controls { 
+      display: flex; 
+      flex-direction: column;
+      gap: 10px; 
+      width: 100%; 
+      max-width: 420px; 
+    }
+    .main-btns {
+      display: flex;
+      gap: 10px;
+    }
+    .btn { 
+      border: none; 
+      border-radius: 12px; 
+      font-size: 20px; 
+      font-weight: 900; 
+      cursor: pointer; 
+      padding: 18px 10px;
+      flex: 1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .btn:active { transform: scale(0.96); opacity: 0.9; }
+    .btn-correct { background: #2e7d32; color: #fff; flex: 2; }
+    .btn-pass { background: #d84315; color: #fff; flex: 1; }
+    .btn-reset { 
+      background: #1e2435; 
+      color: #9aa5be; 
+      font-size: 13px; 
+      padding: 10px;
+      border: 1px solid #313a52;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="badge">MCU DUEL • TOP 70</div>
+
+  <div class="timers">
+    <div id="p1" class="player active">
+      Jucător 1
+      <span id="t1" class="time">60</span>
+      <span class="score">Scor: <b id="s1">0</b></span>
+    </div>
+    <div id="p2" class="player">
+      Jucător 2
+      <span id="t2" class="time">60</span>
+      <span class="score">Scor: <b id="s2">0</b></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <img id="display-img" src="" alt="Personaj MCU">
+    <div id="reveal-overlay" class="reveal-overlay">
+      <div class="reveal-tag">PAS (-1 PCT):</div>
+      <div id="reveal-name" class="reveal-name">-</div>
+    </div>
+  </div>
+
+  <div class="touch-controls">
+    <div class="main-btns">
+      <button class="btn btn-correct" onclick="handleCorrect()">CORECT (+1)</button>
+      <button class="btn btn-pass" onclick="handlePass()">PAS (-1)</button>
+    </div>
+    <button class="btn btn-reset" onclick="resetGame()">Restart Joc</button>
+  </div>
+
+  <script>
+    const personajeMCU = [
+      // 1-10: Cei mai faimoși
+      { nume: "Iron Man", cale: "poze_trivia/iron_man.jpg" },
+      { nume: "Spider-Man", cale: "poze_trivia/spiderman.jpg" },
+      { nume: "Captain America", cale: "poze_trivia/captain_america.jpg" },
+      { nume: "Thor", cale: "poze_trivia/thor.jpg" },
+      { nume: "Hulk", cale: "poze_trivia/hulk.jpg" },
+      { nume: "Thanos", cale: "poze_trivia/thanos.jpg" },
+      { nume: "Black Widow", cale: "poze_trivia/black_widow.jpg" },
+      { nume: "Loki", cale: "poze_trivia/loki.jpg" },
+      { nume: "Doctor Strange", cale: "poze_trivia/doctor_strange.jpg" },
+      { nume: "Black Panther", cale: "poze_trivia/black_panther.jpg" },
+
+      // 11-20: Avengers & Guardians principali
+      { nume: "Scarlet Witch (Wanda)", cale: "poze_trivia/scarlet_witch.jpg" },
+      { nume: "Groot", cale: "poze_trivia/groot.jpg" },
+      { nume: "Rocket Raccoon", cale: "poze_trivia/rocket.jpg" },
+      { nume: "Hawkeye", cale: "poze_trivia/hawkeye.jpg" },
+      { nume: "Star-Lord", cale: "poze_trivia/star_lord.jpg" },
+      { nume: "Ant-Man", cale: "poze_trivia/antman.jpg" },
+      { nume: "Winter Soldier (Bucky)", cale: "poze_trivia/winter_soldier.jpg" },
+      { nume: "Captain Marvel", cale: "poze_trivia/captain_marvel.jpg" },
+      { nume: "Deadpool", cale: "poze_trivia/deadpool.jpg" },
+      { nume: "Wolverine", cale: "poze_trivia/wolverine.jpg" },
+
+      // 21-30: Aliați cheie & Gardieni
+      { nume: "Gamora", cale: "poze_trivia/gamora.jpg" },
+      { nume: "Drax the Destroyer", cale: "poze_trivia/drax.jpg" },
+      { nume: "Vision", cale: "poze_trivia/vision.jpg" },
+      { nume: "Falcon (Sam Wilson)", cale: "poze_trivia/falcon.jpg" },
+      { nume: "War Machine (Rhodey)", cale: "poze_trivia/war_machine.jpg" },
+      { nume: "Nick Fury", cale: "poze_trivia/nick_fury.jpg" },
+      { nume: "Nebula", cale: "poze_trivia/nebula.jpg" },
+      { nume: "Mantis", cale: "poze_trivia/mantis.jpg" },
+      { nume: "Wasp (Hope)", cale: "poze_trivia/wasp.jpg" },
+      { nume: "Daredevil", cale: "poze_trivia/daredevil.jpg" },
+
+      // 31-40: Zei, Asgard & Răufăcători clasici
+      { nume: "Hela", cale: "poze_trivia/hela.jpg" },
+      { nume: "Ultron", cale: "poze_trivia/ultron.jpg" },
+      { nume: "Green Goblin", cale: "poze_trivia/green_goblin.jpg" },
+      { nume: "Doc Ock", cale: "poze_trivia/doc_ock.jpg" },
+      { nume: "Killmonger", cale: "poze_trivia/killmonger.jpg" },
+      { nume: "Valkyrie", cale: "poze_trivia/valkyrie.jpg" },
+      { nume: "Heimdall", cale: "poze_trivia/heimdall.jpg" },
+      { nume: "Odin", cale: "poze_trivia/odin.jpg" },
+      { nume: "Red Skull", cale: "poze_trivia/red_skull.jpg" },
+      { nume: "Shang-Chi", cale: "poze_trivia/shang_chi.jpg" },
+
+      // 41-50: Eroi urbani & Wakanda
+      { nume: "The Punisher", cale: "poze_trivia/punisher.jpg" },
+      { nume: "Moon Knight", cale: "poze_trivia/moon_knight.jpg" },
+      { nume: "Kingpin", cale: "poze_trivia/kingpin.jpg" },
+      { nume: "Okoye", cale: "poze_trivia/okoye.jpg" },
+      { nume: "Shuri", cale: "poze_trivia/shuri.jpg" },
+      { nume: "Wong", cale: "poze_trivia/wong.jpg" },
+      { nume: "Quicksilver", cale: "poze_trivia/quicksilver.jpg" },
+      { nume: "Yondu", cale: "poze_trivia/yondu.jpg" },
+      { nume: "Baron Zemo", cale: "poze_trivia/zemo.jpg" },
+      { nume: "Vulture", cale: "poze_trivia/vulture.jpg" },
+
+      // 51-60: Răufăcători & Personaje secundare
+      { nume: "Mysterio", cale: "poze_trivia/mysterio.jpg" },
+      { nume: "Wenwu (Mandarinul)", cale: "poze_trivia/wenwu.jpg" },
+      { nume: "Namor", cale: "poze_trivia/namor.jpg" },
+      { nume: "Gorr the God Butcher", cale: "poze_trivia/gorr.jpg" },
+      { nume: "Kang the Conqueror", cale: "poze_trivia/kang.jpg" },
+      { nume: "She-Hulk", cale: "poze_trivia/she_hulk.jpg" },
+      { nume: "Ms. Marvel (Kamala)", cale: "poze_trivia/ms_marvel.jpg" },
+      { nume: "Kate Bishop", cale: "poze_trivia/kate_bishop.jpg" },
+      { nume: "Yelena Belova", cale: "poze_trivia/yelena.jpg" },
+      { nume: "Peggy Carter", cale: "poze_trivia/peggy_carter.jpg" },
+
+      // 61-70: Aliați cosmici & Black Order
+      { nume: "The Ancient One", cale: "poze_trivia/ancient_one.jpg" },
+      { nume: "Ego the Living Planet", cale: "poze_trivia/ego.jpg" },
+      { nume: "Grandmaster", cale: "poze_trivia/grandmaster.jpg" },
+      { nume: "Ronan the Accuser", cale: "poze_trivia/ronan.jpg" },
+      { nume: "Abomination", cale: "poze_trivia/abomination.jpg" },
+      { nume: "Taskmaster", cale: "poze_trivia/taskmaster.jpg" },
+      { nume: "Ebony Maw", cale: "poze_trivia/ebony_maw.jpg" },
+      { nume: "Proxima Midnight", cale: "poze_trivia/proxima.jpg" },
+      { nume: "Corvus Glaive", cale: "poze_trivia/corvus.jpg" },
+      { nume: "Cull Obsidian", cale: "poze_trivia/cull_obsidian.jpg" }
+    ];
+
+    let index = 0;
+    let turn = 1; 
+    let t1 = 60, t2 = 60;
+    let s1 = 0, s2 = 0;
+    let interval = null;
+    let gameOver = false;
+    let isShowingPass = false;
+    let passTimeout = null;
+
+    function updateCard() {
+      if (index >= personajeMCU.length) return;
+      document.getElementById('display-img').src = personajeMCU[index].cale;
+    }
+
+    function checkEndByCards() {
+      if (index >= personajeMCU.length) {
+        clearInterval(interval);
+        gameOver = true;
+        let castigator = "";
+        if (s1 > s2) {
+          castigator = `S-au terminat toate personajele!\n\n🏆 Jucătorul 1 CÂȘTIGĂ!\nScor: ${s1} la ${s2}`;
+        } else if (s2 > s1) {
+          castigator = `S-au terminat toate personajele!\n\n🏆 Jucătorul 2 CÂȘTIGĂ!\nScor: ${s2} la ${s1}`;
+        } else {
+          castigator = `S-au terminat toate personajele!\n\n🤝 EGALITATE!\nScor: ${s1} - ${s2}`;
+        }
+        alert(castigator);
+        return true;
+      }
+      return false;
+    }
+
+    function startTimer() {
+      if (interval || gameOver) return;
+      interval = setInterval(() => {
+        if (turn === 1) {
+          t1--;
+          document.getElementById('t1').innerText = t1;
+          if (t1 <= 0) endGame("Timpul Jucătorului 1 a expirat! Câștigă Jucătorul 2! 🏆");
+        } else {
+          t2--;
+          document.getElementById('t2').innerText = t2;
+          if (t2 <= 0) endGame("Timpul Jucătorului 2 a expirat! Câștigă Jucătorul 1! 🏆");
+        }
+      }, 1000);
+    }
+
+    function handleCorrect() {
+      if (gameOver || isShowingPass) return;
+      startTimer();
+
+      // +1 punct pentru răspuns corect
+      if (turn === 1) {
+        s1++;
+        document.getElementById('s1').innerText = s1;
+      } else {
+        s2++;
+        document.getElementById('s2').innerText = s2;
+      }
+
+      index++;
+      if (checkEndByCards()) return;
+
+      // Schimbă tura către celălalt jucător
+      turn = turn === 1 ? 2 : 1;
+      document.getElementById('p1').classList.toggle('active', turn === 1);
+      document.getElementById('p2').classList.toggle('active', turn === 2);
+      updateCard();
+    }
+
+    function handlePass() {
+      if (gameOver || isShowingPass) return;
+      startTimer();
+      isShowingPass = true;
+
+      // Penalizare: -1 punct pentru cine dă PAS
+      if (turn === 1) {
+        s1--;
+        document.getElementById('s1').innerText = s1;
+      } else {
+        s2--;
+        document.getElementById('s2').innerText = s2;
+      }
+
+      const overlay = document.getElementById('reveal-overlay');
+      document.getElementById('reveal-name').innerText = personajeMCU[index].nume;
+      overlay.classList.add('visible');
+
+      passTimeout = setTimeout(() => {
+        overlay.classList.remove('visible');
+        index++;
+        if (!checkEndByCards()) {
+          updateCard();
+        }
+        isShowingPass = false;
+      }, 1500);
+    }
+
+    function resetGame() {
+      clearInterval(interval);
+      clearTimeout(passTimeout);
+      interval = null;
+      gameOver = false;
+      isShowingPass = false;
+      t1 = 60; t2 = 60;
+      s1 = 0; s2 = 0;
+      turn = 1; index = 0;
+      document.getElementById('reveal-overlay').classList.remove('visible');
+      document.getElementById('t1').innerText = t1;
+      document.getElementById('t2').innerText = t2;
+      document.getElementById('s1').innerText = s1;
+      document.getElementById('s2').innerText = s2;
+      document.getElementById('p1').classList.add('active');
+      document.getElementById('p2').classList.remove('active');
+      updateCard();
+    }
+
+    function endGame(msg) {
+      clearInterval(interval);
+      clearTimeout(passTimeout);
+      gameOver = true;
+      document.getElementById('reveal-overlay').classList.remove('visible');
+      alert(`${msg}\n\nScor final:\nJucător 1: ${s1} puncte\nJucător 2: ${s2} puncte`);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { e.preventDefault(); handleCorrect(); }
+      else if (e.code === 'KeyP') { handlePass(); }
+      else if (e.code === 'KeyR') { resetGame(); }
+    });
+
+    updateCard();
+  </script>
+</body>
+</html>
